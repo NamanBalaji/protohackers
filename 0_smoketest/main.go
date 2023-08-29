@@ -1,49 +1,37 @@
 package main
 
 import (
-	"fmt"
+	"io"
+	"log"
 	"net"
-	"os"
 )
 
 func main() {
-	listner, err := net.Listen("tcp", ":9000")
+	l, err := net.Listen("tcp", ":9000")
 	if err != nil {
-		fmt.Printf("Error listening: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("Received error %s\n", err)
 	}
-
-	defer listner.Close()
-
-	fmt.Printf("Server listening on port: %d\n", 9000)
+	defer l.Close()
 
 	for {
-		client, err := listner.Accept()
+		conn, err := l.Accept()
 		if err != nil {
-			fmt.Printf("Error accepting: %s\n", err)
+			log.Printf("Couldn't accept connection: %s", err)
 			continue
 		}
-
-		go handleClient(client)
+		go handle(conn)
 	}
 }
 
-func handleClient(client net.Conn) {
-	fmt.Printf("Connected: %s\n", client.RemoteAddr())
-	defer client.Close()
+func handle(conn net.Conn) {
+	defer conn.Close()
+	a := conn.RemoteAddr().String()
+	log.Printf("ACCEPT %s\n", a)
 
-	buffer := make([]byte, 1024)
-	for {
-		n, err := client.Read(buffer)
-		if err != nil {
-			fmt.Printf("Error reading: %s\n", err)
-			return
-		}
-
-		_, err = client.Write(buffer[:n])
-		if err != nil {
-			fmt.Printf("Error writing: %s\n", err)
-			return
-		}
+	written, err := io.Copy(conn, conn)
+	if err != nil {
+		log.Printf("ERROR %s %s\n", a, err)
+	} else {
+		log.Printf("CLOSE %s Wrote %d bytes\n", a, written)
 	}
 }
